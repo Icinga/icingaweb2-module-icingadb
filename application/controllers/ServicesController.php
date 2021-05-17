@@ -7,6 +7,7 @@ namespace Icinga\Module\Icingadb\Controllers;
 use GuzzleHttp\Psr7\ServerRequest;
 use Icinga\Module\Icingadb\Common\CommandActions;
 use Icinga\Module\Icingadb\Common\Links;
+use Icinga\Module\Icingadb\Data\PivotTable;
 use Icinga\Module\Icingadb\Model\Service;
 use Icinga\Module\Icingadb\Model\ServicestateSummary;
 use Icinga\Module\Icingadb\Util\FeatureStatus;
@@ -18,7 +19,9 @@ use Icinga\Module\Icingadb\Widget\ServiceList;
 use Icinga\Module\Icingadb\Widget\ServiceStatusBar;
 use Icinga\Module\Icingadb\Widget\ShowMore;
 use Icinga\Module\Icingadb\Widget\ViewModeSwitcher;
+use ipl\Html\Form;
 use ipl\Stdlib\Filter;
+use ipl\Web\Compat\CompatForm;
 use ipl\Web\Control\LimitControl;
 use ipl\Web\Control\SortControl;
 use ipl\Web\Filter\QueryString;
@@ -196,6 +199,139 @@ class ServicesController extends Controller
 
         $this->getDocument()->add($editor);
         $this->setTitle(t('Adjust Filter'));
+    }
+
+    public function gridSearchEditorAction()
+    {
+        $query = Service::on($this->getDb())
+            ->with([
+                'state',
+                'host',
+                'host.state'
+            ]);
+        $editor = $this->createSearchEditor($query, [
+            LimitControl::DEFAULT_LIMIT_PARAM,
+            SortControl::DEFAULT_SORT_PARAM,
+            ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM
+        ]);
+
+        $this->getDocument()->add($editor);
+        $this->setTitle(t('Adjust Grid Filter'));
+    }
+
+    public function gridAction()
+    {
+        $compact = $this->view->compact;
+
+        $db = $this->getDb();
+        $this->setTitle(t('Service Grid'));
+
+        $query = Service::on($db)->with([
+            'state',
+            'host',
+            'host.state'
+        ]);
+
+        $this->handleSearchRequest($query);
+        $gridcols = [
+            'host_name' => 'host.display_name',
+            'host_display_name' => 'host.name',
+            'service_name' => 'service.name',
+            'service_display_name' => 'service.display_name',
+            'service_handled' => 'service.state.is_handled',
+            'service_output' => 'service.state.output',
+            'service_state' => 'service.state.soft_state'
+        ];
+        $flipped = $this->params->shift('flipped', false);
+
+        $pivotFilter = (bool) $this->params->shift('problems', false) ?
+            Filter::equal('service.state.is_problem', 'y') : null;
+
+        $problemToggle = (new CompatForm())->addAttributes(['class' => 'inline']);
+
+        $problemToggle->addElement('checkbox', 'problems', [
+            'class'     => 'autosubmit',
+            'id'        => $this->getRequest()->protectId('problems'),
+            'label'     => $this->translate('Problems Only'),
+            'value'     => $pivotFilter !== null
+        ]);
+
+        $problemToggle->on(Form::ON_SUCCESS, function (Form $form) {
+            if (! $form->getElement('problems')->isChecked()) {
+                $this->redirectNow(Url::fromRequest()->remove('problems'));
+            } else {
+                $this->redirectNow(Url::fromRequest()->setParams($this->params->add('problems')));
+            }
+        });
+
+        $problemToggle->handleRequest(ServerRequest::fromGlobals());
+
+        $this->addControl($problemToggle);
+
+        $sortControl = $this->createSortControl($query, [
+            'host.name'     => $this->translate('Host Name'),
+            'service.name'  => $this->translate('Service Name')
+        ]);
+
+        if ($flipped) {
+            $xAxisCol = 'host_name';
+            $yAxisCol = 'service_name';
+        } else {
+            $xAxisCol = 'service_name';
+            $yAxisCol = 'host_name';
+        }
+
+        $pivot = (new PivotTable($query, $xAxisCol, $yAxisCol, $gridcols))
+            ->setXAxisFilter($pivotFilter)
+            ->setYAxisFilter($pivotFilter ? clone $pivotFilter : null)
+            ->setXAxisHeader($xAxisCol)
+            ->setYAxisHeader($yAxisCol);
+
+        $this->view->horizontalPaginator = $pivot->paginateXAxis();
+        $this->view->verticalPaginator = $pivot->paginateYAxis();
+        list($pivotData, $pivotHeader) = $pivot->toArray();
+        $this->view->pivotData = $pivotData;
+        $this->view->pivotHeader = $pivotHeader;
+
+        $searchBar = $this->createSearchBar($query, [
+            LimitControl::DEFAULT_LIMIT_PARAM,
+            $sortControl->getSortParam(),
+            'flipped',
+            'page'
+        ]);
+
+        $continueWith = $this->createContinueWith(
+            Url::fromPath('icingadb/services/grid')->addParams($this->getAllParams()),
+            $searchBar
+        );
+
+        if ($searchBar->hasBeenSent() && ! $searchBar->isValid()) {
+            if ($searchBar->hasBeenSubmitted()) {
+                $filter = $this->getFilter();
+            } else {
+                $this->addControl($searchBar);
+                $this->sendMultipartUpdate();
+                return;
+            }
+        } else {
+            $filter = $searchBar->getFilter();
+        }
+
+        $this->filter($query, $filter);
+
+        $this->addControl($sortControl);
+        $this->addControl($searchBar);
+        $this->view->controls = $this->controls;
+
+        if ($flipped) {
+            $this->render('grid-flipped');
+        }
+
+        if (! $searchBar->hasBeenSubmitted() && $searchBar->hasBeenSent()) {
+            $this->sendMultipartUpdate($continueWith);
+        }
+
+        $this->setAutorefreshInterval(10);
     }
 
     public function fetchCommandTargets()

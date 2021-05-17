@@ -282,6 +282,12 @@ namespace Icinga\Module\Icingadb
         'url' => 'icingadb/notifications',
         'priority' => 50
     ]);
+    $section->add(N_('Service Grid'), [
+        'icon'        => 'services',
+        'description' => $this->translate('Display service problems as grid'),
+        'url'         => 'icingadb/services/grid?problems',
+        'priority'    => 70
+    ]);
 
     $auth = Auth::getInstance();
     $routeBlacklist = [];

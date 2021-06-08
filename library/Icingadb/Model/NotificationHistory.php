@@ -51,6 +51,7 @@ class NotificationHistory extends Model
     public function getMetaData()
     {
         return [
+            'id'                    => t('Notification History Id'),
             'environment_id'        => t('Notification Environment Id (History)'),
             'endpoint_id'           => t('Notification Endpoint Id (History)'),
             'object_type'           => t('Notification Object Type (History)'),

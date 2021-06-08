@@ -7,6 +7,7 @@ namespace Icinga\Module\Icingadb\Widget\ItemList;
 use Icinga\Module\Icingadb\Common\HostLink;
 use Icinga\Module\Icingadb\Common\HostStates;
 use Icinga\Module\Icingadb\Common\Icons;
+use Icinga\Module\Icingadb\Common\Links;
 use Icinga\Module\Icingadb\Common\NoSubjectLink;
 use Icinga\Module\Icingadb\Common\ServiceLink;
 use Icinga\Module\Icingadb\Common\ServiceStates;
@@ -133,10 +134,17 @@ class NotificationListItem extends CommonListItem
 
     protected function assembleTitle(BaseHtmlElement $title)
     {
-        $title->add([
-            sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
-            Html::tag('br')
-        ]);
+        if ($this->getNoSubjectLink()) {
+            $title->add([
+                sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
+                Html::tag('br')
+            ]);
+        } else {
+            $title->add(new Link(
+                sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
+                Links::event($this->item->history)
+            ));
+        }
 
         if ($this->item->object_type === 'host') {
             $link = $this->createHostLink($this->item->host, true);

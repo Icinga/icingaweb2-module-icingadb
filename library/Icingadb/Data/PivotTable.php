@@ -9,6 +9,8 @@ use ipl\Stdlib\Filter;
 
 class PivotTable
 {
+    const SORT_ASC = 'asc';
+
     /**
      * The query to fetch as pivot table
      *
@@ -72,6 +74,18 @@ class PivotTable
      */
     protected $yAxisHeader;
 
+    /**
+     * Order by column and direction
+     *
+     * @var array
+     */
+    protected $order = [];
+
+    /**
+     * Grid columns as [Alias => Column name] pairs
+     *
+     * @var array
+     */
     protected $gridcols = [];
 
     /**
@@ -84,7 +98,12 @@ class PivotTable
      */
     public function __construct(Query $query, $xAxisColumn, $yAxisColumn, $gridcols)
     {
-        $this->baseQuery = $query->setColumns($gridcols);
+        foreach ($query->getOrderBy() as $sort) {
+            $this->order[$sort[0]] = $sort[1];
+        }
+
+        // ipl/sql branch put-reset-methods-into-the trait is required for resetOrderBy().
+        $this->baseQuery = $query->setColumns($gridcols)->resetOrderBy();
         $this->xAxisColumn = $xAxisColumn;
         $this->yAxisColumn = $yAxisColumn;
         $this->gridcols = $gridcols;
@@ -205,6 +224,7 @@ class PivotTable
                 $xAxisHeader => $this->gridcols[$xAxisHeader]
             ];
 
+            // TODO: This shouldn't be required. Refactor this once ipl\Orm\Query has support for group by rules!
             if ($xCol[0] !== $table) {
                 $groupCols = array_unique([
                     $this->xAxisColumn => $table . '_' . $this->gridcols[$this->xAxisColumn],
@@ -227,7 +247,9 @@ class PivotTable
             }
 
             $this->xAxisQuery->orderBy(
-                $this->gridcols[$xAxisHeader]
+                $this->gridcols[$xAxisHeader],
+                isset($this->order[$this->gridcols[$xAxisHeader]]) ?
+                    $this->order[$this->gridcols[$xAxisHeader]] : self::SORT_ASC
             );
         }
 
@@ -251,6 +273,7 @@ class PivotTable
             ];
             $yCol = explode('.', $this->gridcols[$this->yAxisColumn]);
 
+            // TODO: This shouldn't be required. Refactor this once ipl\Orm\Query has support for group by rules!
             if ($yCol[0] !== $table) {
                 $groupCols = array_unique([
                     $this->yAxisColumn => $table . '_' . $this->gridcols[$this->yAxisColumn],
@@ -273,7 +296,9 @@ class PivotTable
             }
 
             $this->yAxisQuery->orderBy(
-                $this->gridcols[$yAxisHeader]
+                $this->gridcols[$yAxisHeader],
+                isset($this->order[$this->gridcols[$yAxisHeader]]) ?
+                    $this->order[$this->gridcols[$yAxisHeader]] : self::SORT_ASC
             );
         }
 

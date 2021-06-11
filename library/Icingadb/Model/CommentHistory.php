@@ -42,6 +42,7 @@ class CommentHistory extends Model
             'comment',
             'entry_type',
             'is_persistent',
+            'is_sticky',
             'expire_time',
             'remove_time',
             'has_been_removed'
@@ -62,6 +63,7 @@ class CommentHistory extends Model
             'comment'           => t('Comment Comment (History)'),
             'entry_type'        => t('Comment Entry Type (History)'),
             'is_persistent'     => t('Comment Is Persistent (History)'),
+            'is_sticky'         => t('Comment Is Sticky (History)'),
             'expire_time'       => t('Comment Expire Time (History)'),
             'remove_time'       => t('Comment Remove Time (History)'),
             'has_been_removed'  => t('Comment Has Been Removed (History)')
@@ -72,6 +74,7 @@ class CommentHistory extends Model
     {
         $behaviors->add(new BoolCast([
             'is_persistent',
+            'is_sticky',
             'has_been_removed'
         ]));
 

@@ -14,6 +14,7 @@ use Icinga\Module\Icingadb\Common\MarkdownText;
 use Icinga\Module\Icingadb\Common\ServiceStates;
 use Icinga\Module\Icingadb\Compat\CompatPluginOutput;
 use Icinga\Module\Icingadb\Model\AcknowledgementHistory;
+use Icinga\Module\Icingadb\Model\FlappingHistory;
 use Icinga\Module\Icingadb\Model\History;
 use Icinga\Module\Icingadb\Model\NotificationHistory;
 use Icinga\Module\Icingadb\Model\StateHistory;
@@ -192,6 +193,45 @@ class EventDetail extends BaseHtmlElement
         ]);
     }
 
+    protected function assembleFlappingEvent(FlappingHistory $flapping)
+    {
+        $this->add([
+            new HtmlElement('h2', null, t('Event Info')),
+            $flapping->object_type === 'host'
+                ? new HorizontalKeyValue(t('Host'), new HtmlElement(
+                    'span',
+                    ['class' => 'accompanying-text'],
+                    new HtmlElement('span', ['class' => 'subject'], $this->event->host->display_name)
+                ))
+                : new HorizontalKeyValue(t('Service'), new HtmlElement(
+                    'span',
+                    ['class' => 'accompanying-text'],
+                    FormattedString::create(
+                        t('%s on %s', '<service> on <host>'),
+                        new HtmlElement('span', ['class' => 'subject'], $this->event->service->display_name),
+                        new HtmlElement('span', ['class' => 'subject'], $this->event->host->display_name)
+                    )
+                )),
+           new HorizontalKeyValue(t('Started on'), DateFormatter::formatDateTime($flapping->start_time))
+        ]);
+        if ($this->event->event_type === 'flapping_start') {
+            $this->add(new HorizontalKeyValue(t('Reason'), sprintf(
+                t('State change rate of %.2f%% exceeded the threshold (%.2f%%)'),
+                $flapping->percent_state_change_start,
+                $flapping->flapping_threshold_high
+            )));
+        } else {
+            $this->add([
+                new HorizontalKeyValue(t('Ended on'), DateFormatter::formatDateTime($flapping->end_time)),
+                new HorizontalKeyValue(t('Reason'), sprintf(
+                    t('State change rate of %.2f%% undercut the threshold (%.2f%%)'),
+                    $flapping->percent_state_change_end,
+                    $flapping->flapping_threshold_low
+                ))
+            ]);
+        }
+    }
+
     protected function assembleAcknowledgeEvent(AcknowledgementHistory $acknowledgement)
     {
         if ($acknowledgement->comment) {
@@ -293,6 +333,9 @@ class EventDetail extends BaseHtmlElement
             case 'comment_remove':
             case 'flapping_start':
             case 'flapping_end':
+                $this->assembleFlappingEvent($this->event->flapping);
+
+                break;
             case 'ack_set':
             case 'ack_clear':
                 $this->assembleAcknowledgeEvent($this->event->acknowledgement);

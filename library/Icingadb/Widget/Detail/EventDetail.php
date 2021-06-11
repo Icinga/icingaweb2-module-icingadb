@@ -4,12 +4,16 @@
 
 namespace Icinga\Module\Icingadb\Widget\Detail;
 
+use DateTime;
+use DateTimeZone;
 use Icinga\Date\DateFormatter;
 use Icinga\Module\Icingadb\Common\Auth;
 use Icinga\Module\Icingadb\Common\HostStates;
 use Icinga\Module\Icingadb\Common\Links;
+use Icinga\Module\Icingadb\Common\MarkdownText;
 use Icinga\Module\Icingadb\Common\ServiceStates;
 use Icinga\Module\Icingadb\Compat\CompatPluginOutput;
+use Icinga\Module\Icingadb\Model\AcknowledgementHistory;
 use Icinga\Module\Icingadb\Model\History;
 use Icinga\Module\Icingadb\Model\NotificationHistory;
 use Icinga\Module\Icingadb\Model\StateHistory;
@@ -188,6 +192,90 @@ class EventDetail extends BaseHtmlElement
         ]);
     }
 
+    protected function assembleAcknowledgeEvent(AcknowledgementHistory $acknowledgement)
+    {
+        if ($acknowledgement->comment) {
+            $this->add([
+                new HtmlElement('h2', null, t('Comment')),
+                new MarkdownText($acknowledgement->comment)
+            ]);
+        }
+
+        $this->add([
+            new HtmlElement('h2', null, t('Event Info')),
+            new HorizontalKeyValue(t('Set on'), DateFormatter::formatDateTime($acknowledgement->set_time)),
+            new HorizontalKeyValue(t('Author'), [new Icon('user'), $acknowledgement->author]),
+            $acknowledgement->object_type === 'host'
+                ? new HorizontalKeyValue(t('Host'), new HtmlElement(
+                    'span',
+                    ['class' => 'accompanying-text'],
+                    new HtmlElement('span', ['class' => 'subject'], $this->event->host->display_name)
+                ))
+                : new HorizontalKeyValue(t('Service'), new HtmlElement(
+                    'span',
+                    ['class' => 'accompanying-text'],
+                    FormattedString::create(
+                        t('%s on %s', '<service> on <host>'),
+                        new HtmlElement('span', ['class' => 'subject'], $this->event->service->display_name),
+                        new HtmlElement('span', ['class' => 'subject'], $this->event->host->display_name)
+                    )
+                ))
+        ]);
+
+        if ($this->event->event_type === 'ack_set') {
+            $this->add([
+                new HorizontalKeyValue(t('Expires On'), $acknowledgement->expire_time
+                    ? DateFormatter::formatDateTime($acknowledgement->expire_time)
+                    : '-'),
+                new HorizontalKeyValue(t('Sticky'), $acknowledgement->is_sticky ? t('Yes') : t('No')),
+                new HorizontalKeyValue(t('Persistent'), $acknowledgement->is_persistent ? t('Yes') : t('No'))
+            ]);
+        } else {
+            $this->add(new HorizontalKeyValue(t('Cleared on'), DateFormatter::formatDateTime(
+                $acknowledgement->clear_time ?: $this->event->event_time
+            )));
+            if ($acknowledgement->cleared_by) {
+                $this->add(new HorizontalKeyValue(t('Cleared by'), [new Icon('user', $acknowledgement->cleared_by)]));
+            } else {
+                $expired = false;
+                if ($acknowledgement->expire_time) {
+                    $now = (new DateTime())->setTimezone(new DateTimeZone(DateTimeZone::UTC));
+                    $expiresOn = clone $now;
+                    $expiresOn->setTimestamp($acknowledgement->expire_time);
+                    if ($now <= $expiresOn) {
+                        $expired = true;
+                        $this->add(new HorizontalKeyValue(t('Removal Reason'), t(
+                            'The acknowledgement expired on %s',
+                            DateFormatter::formatDateTime($acknowledgement->expire_time)
+                        )));
+                    }
+                }
+
+                if (! $expired) {
+                    if ($acknowledgement->is_sticky) {
+                        $this->add(
+                            new HorizontalKeyValue(
+                                t('Reason'),
+                                $acknowledgement->object_type === 'host'
+                                    ? t('Host recovered')
+                                    : t('Service recovered')
+                            )
+                        );
+                    } else {
+                        $this->add(
+                            new HorizontalKeyValue(
+                                t('Reason'),
+                                $acknowledgement->object_type === 'host'
+                                    ? t('Host recovered') // Hosts have no other state between UP and DOWN
+                                    : t('Service changed its state')
+                            )
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     protected function assemble()
     {
         switch ($this->event->event_type) {
@@ -207,6 +295,9 @@ class EventDetail extends BaseHtmlElement
             case 'flapping_end':
             case 'ack_set':
             case 'ack_clear':
+                $this->assembleAcknowledgeEvent($this->event->acknowledgement);
+
+                break;
         }
     }
 }

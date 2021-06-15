@@ -87,7 +87,6 @@ class DowntimeHistory extends Model
 
         $behaviors->add(new Timestamp([
             'entry_time',
-            'flexible_duration',
             'scheduled_start_time',
             'scheduled_end_time',
             'start_time',

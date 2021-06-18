@@ -6,7 +6,9 @@ namespace Icinga\Module\Icingadb\Common;
 
 use Icinga\Module\Icingadb\Model\Comment;
 use Icinga\Module\Icingadb\Model\Downtime;
+use Icinga\Module\Icingadb\Model\History;
 use Icinga\Module\Icingadb\Model\Host;
+use Icinga\Module\Icingadb\Model\NotificationHistory;
 use Icinga\Module\Icingadb\Model\Service;
 use Icinga\Module\Icingadb\Model\User;
 use Icinga\Module\Icingadb\Model\Usergroup;
@@ -122,5 +124,15 @@ abstract class Links
     public static function usergroup(Usergroup $usergroup)
     {
         return Url::fromPath('icingadb/usergroup', ['name' => $usergroup->name]);
+    }
+
+    public static function users()
+    {
+        return Url::fromPath('icingadb/users');
+    }
+
+    public static function event(History $event)
+    {
+        return Url::fromPath('icingadb/event', ['id' => bin2hex($event->id)]);
     }
 }

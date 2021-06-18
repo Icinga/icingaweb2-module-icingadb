@@ -24,7 +24,8 @@
 }
 
 .host-detail .plugin-output,
-.service-detail .plugin-output {
+.service-detail .plugin-output,
+.event-detail .plugin-output {
   .rounded-corners(.25em);
   background-color: @gray-lighter;
   padding: .5em;
@@ -169,7 +170,8 @@ div.show-more {
 .host-detail > h2:first-child,
 .comment-detail > h2:first-child,
 .downtime-detail > h2:first-child,
-.inspection-detail > h2:first-child {
+.inspection-detail > h2:first-child,
+.event-detail > h2:first-child {
   margin-top: 0;
 }
 
@@ -193,6 +195,15 @@ div.show-more {
 
 .text-muted {
   color: @gray;
+}
+
+.accompanying-text {
+  color: @text-color-light;
+
+  .subject {
+    color: @text-color;
+    .user-select(all);
+  }
 }
 
 .comment-detail > :not(:first-child) {

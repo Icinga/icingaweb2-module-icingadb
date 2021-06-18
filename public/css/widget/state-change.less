@@ -4,11 +4,29 @@
   }
 
   .state-ball ~ .state-ball {
-    margin-left: -.875em;
+    &.ball-size-xs {
+      margin-left: -.05em;
+    }
+
+    &.ball-size-s {
+      margin-left: -.15em;
+    }
+
+    &.ball-size-m {
+      margin-left: -.275em;
+    }
+
+    &.ball-size-l,
+    &.ball-size-xl {
+      margin-left: -.875em;
+    }
   }
 
   .state-ball.state-ok,
   .state-ball.state-up {
-    background-color: @body-bg-color;
+    &.ball-size-l,
+    &.ball-size-xl {
+      background-color: @body-bg-color;
+    }
   }
 }

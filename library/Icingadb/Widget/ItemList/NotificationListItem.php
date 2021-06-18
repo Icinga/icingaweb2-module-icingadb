@@ -7,6 +7,8 @@ namespace Icinga\Module\Icingadb\Widget\ItemList;
 use Icinga\Module\Icingadb\Common\HostLink;
 use Icinga\Module\Icingadb\Common\HostStates;
 use Icinga\Module\Icingadb\Common\Icons;
+use Icinga\Module\Icingadb\Common\Links;
+use Icinga\Module\Icingadb\Common\NoSubjectLink;
 use Icinga\Module\Icingadb\Common\ServiceLink;
 use Icinga\Module\Icingadb\Common\ServiceStates;
 use Icinga\Module\Icingadb\Compat\CompatPluginOutput;
@@ -16,12 +18,23 @@ use InvalidArgumentException;
 use ipl\Html\BaseHtmlElement;
 use ipl\Html\Html;
 use ipl\Web\Widget\Icon;
+use ipl\Web\Widget\Link;
 use ipl\Web\Widget\StateBall;
 
 class NotificationListItem extends CommonListItem
 {
     use HostLink;
+    use NoSubjectLink;
     use ServiceLink;
+
+    /** @var NotificationList */
+    protected $list;
+
+    protected function init()
+    {
+        $this->setNoSubjectLink($this->list->getNoSubjectLink());
+        $this->setCaptionDisabled($this->list->isCaptionDisabled());
+    }
 
     /**
      * Get a localized phrase for the given notification type
@@ -121,10 +134,17 @@ class NotificationListItem extends CommonListItem
 
     protected function assembleTitle(BaseHtmlElement $title)
     {
-        $title->add([
-            sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
-            Html::tag('br')
-        ]);
+        if ($this->getNoSubjectLink()) {
+            $title->add([
+                sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
+                Html::tag('br')
+            ]);
+        } else {
+            $title->add(new Link(
+                sprintf(self::phraseForType($this->item->type), ucfirst($this->item->object_type)),
+                Links::event($this->item->history)
+            ));
+        }
 
         if ($this->item->object_type === 'host') {
             $link = $this->createHostLink($this->item->host, true);

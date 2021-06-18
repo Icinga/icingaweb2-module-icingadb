@@ -8,10 +8,13 @@ use Icinga\Date\DateFormatter;
 use Icinga\Module\Icingadb\Common\HostLink;
 use Icinga\Module\Icingadb\Common\HostStates;
 use Icinga\Module\Icingadb\Common\Icons;
+use Icinga\Module\Icingadb\Common\Links;
 use Icinga\Module\Icingadb\Common\MarkdownLine;
+use Icinga\Module\Icingadb\Common\NoSubjectLink;
 use Icinga\Module\Icingadb\Common\ServiceLink;
 use Icinga\Module\Icingadb\Common\ServiceStates;
 use Icinga\Module\Icingadb\Compat\CompatPluginOutput;
+use Icinga\Module\Icingadb\Model\History;
 use Icinga\Module\Icingadb\Widget\CheckAttempt;
 use Icinga\Module\Icingadb\Widget\CommonListItem;
 use Icinga\Module\Icingadb\Widget\StateChange;
@@ -19,11 +22,25 @@ use Icinga\Module\Icingadb\Widget\TimeAgo;
 use ipl\Html\BaseHtmlElement;
 use ipl\Html\Html;
 use ipl\Web\Widget\Icon;
+use ipl\Web\Widget\Link;
 
 class HistoryListItem extends CommonListItem
 {
     use HostLink;
+    use NoSubjectLink;
     use ServiceLink;
+
+    /** @var History */
+    protected $item;
+
+    /** @var HistoryList */
+    protected $list;
+
+    protected function init()
+    {
+        $this->setNoSubjectLink($this->list->getNoSubjectLink());
+        $this->setCaptionDisabled($this->list->isCaptionDisabled());
+    }
 
     protected function assembleCaption(BaseHtmlElement $caption)
     {
@@ -177,85 +194,81 @@ class HistoryListItem extends CommonListItem
     {
         switch ($this->item->event_type) {
             case 'comment_add':
-                $title->add(t('Comment added'));
+                $subjectLabel = t('Comment added');
 
                 break;
             case 'comment_remove':
                 if (! empty($this->item->comment->removed_by)) {
                     if ($this->item->comment->removed_by !== $this->item->comment->author) {
-                        $title->add(sprintf(
+                        $subjectLabel = sprintf(
                             t('Comment removed by %s', '..<username>'),
                             $this->item->comment->removed_by
-                        ));
+                        );
                     } else {
-                        $title->add(t('Comment removed by author'));
+                        $subjectLabel = t('Comment removed by author');
                     }
                 } elseif (isset($this->item->comment->expire_time)) {
-                    $title->add(t('Comment expired'));
+                    $subjectLabel = t('Comment expired');
                 } else {
-                    $title->add(t('Comment removed'));
+                    $subjectLabel = t('Comment removed');
                 }
 
                 break;
             case 'downtime_end':
                 if (! empty($this->item->downtime->cancelled_by)) {
                     if ($this->item->downtime->cancelled_by !== $this->item->downtime->author) {
-                        $title->add(sprintf(
+                        $subjectLabel = sprintf(
                             t('Downtime cancelled by %s', '..<username>'),
                             $this->item->downtime->cancelled_by
-                        ));
+                        );
                     } else {
-                        $title->add(t('Downtime cancelled by author'));
+                        $subjectLabel = t('Downtime cancelled by author');
                     }
                 } elseif (isset($this->item->downtime->cancel_time)) {
-                    $title->add(t('Downtime cancelled'));
+                    $subjectLabel = t('Downtime cancelled');
                 } else {
-                    $title->add(t('Downtime ended'));
+                    $subjectLabel = t('Downtime ended');
                 }
 
                 break;
             case 'downtime_start':
-                $title->add(t('Downtime started'));
+                $subjectLabel = t('Downtime started');
 
                 break;
             case 'flapping_start':
-                $title->add(t('Flapping started'));
+                $subjectLabel = t('Flapping started');
 
                 break;
             case 'flapping_end':
-                $title->add(t('Flapping stopped'));
+                $subjectLabel = t('Flapping stopped');
 
                 break;
             case 'ack_set':
-                $title->add(t('Acknowledgement set'));
+                $subjectLabel = t('Acknowledgement set');
 
                 break;
             case 'ack_clear':
                 if (! empty($this->item->acknowledgement->cleared_by)) {
                     if ($this->item->acknowledgement->cleared_by !== $this->item->acknowledgement->author) {
-                        $title->add(sprintf(
+                        $subjectLabel = sprintf(
                             t('Acknowledgement cleared by %s', '..<username>'),
                             $this->item->acknowledgement->cleared_by
-                        ));
+                        );
                     } else {
-                        $title->add(t('Acknowledgement cleared by author'));
+                        $subjectLabel = t('Acknowledgement cleared by author');
                     }
                 } elseif (isset($this->item->acknowledgement->expire_time)) {
-                    $title->add(t('Acknowledgement expired'));
+                    $subjectLabel = t('Acknowledgement expired');
                 } else {
-                    $title->add(t('Acknowledgement cleared'));
+                    $subjectLabel = t('Acknowledgement cleared');
                 }
 
                 break;
             case 'notification':
-                $title->add([
-                    t('Notification'),
-                    ': ',
-                    sprintf(
-                        NotificationListItem::phraseForType($this->item->notification->type),
-                        ucfirst($this->item->object_type)
-                    )
-                ]);
+                $subjectLabel = sprintf(
+                    NotificationListItem::phraseForType($this->item->notification->type),
+                    ucfirst($this->item->object_type)
+                );
 
                 break;
             case 'state_change':
@@ -264,23 +277,29 @@ class HistoryListItem extends CommonListItem
                     : $this->item->state->soft_state;
                 if ($state === 0) {
                     if ($this->item->object_type === 'service') {
-                        $title->add(t('Service recovered'));
+                        $subjectLabel = t('Service recovered');
                     } else {
-                        $title->add(t('Host recovered'));
+                        $subjectLabel = t('Host recovered');
                     }
                 } else {
                     if ($this->item->state->state_type === 'hard') {
-                        $title->add(t('Hard state changed'));
+                        $subjectLabel = t('Hard state changed');
                     } else {
-                        $title->add(t('Soft state changed'));
+                        $subjectLabel = t('Soft state changed');
                     }
                 }
 
                 break;
             default:
-                $title->add($this->item->event_type);
+                $subjectLabel = $this->item->event_type;
 
                 break;
+        }
+
+        if ($this->getNoSubjectLink()) {
+            $title->add($subjectLabel);
+        } else {
+            $title->add(new Link($subjectLabel, Links::event($this->item)));
         }
 
         if ($this->item->object_type === 'host') {

@@ -4,6 +4,7 @@
 
 namespace Icinga\Module\Icingadb\Model;
 
+use Icinga\Module\Icingadb\Model\Behavior\IdKey;
 use Icinga\Module\Icingadb\Model\Behavior\ReRoute;
 use Icinga\Module\Icingadb\Model\Behavior\Timestamp;
 use ipl\Orm\Behaviors;
@@ -50,6 +51,7 @@ class NotificationHistory extends Model
     public function getMetaData()
     {
         return [
+            'id'                    => t('Notification History Id'),
             'environment_id'        => t('Notification Environment Id (History)'),
             'endpoint_id'           => t('Notification Endpoint Id (History)'),
             'object_type'           => t('Notification Object Type (History)'),
@@ -78,6 +80,7 @@ class NotificationHistory extends Model
 
     public function createBehaviors(Behaviors $behaviors)
     {
+        $behaviors->add(new IdKey());
         $behaviors->add(new Timestamp([
             'send_time'
         ]));

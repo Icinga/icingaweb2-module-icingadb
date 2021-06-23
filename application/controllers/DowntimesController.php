@@ -38,8 +38,6 @@ class DowntimesController extends Controller
 
         $this->handleSearchRequest($downtimes);
 
-        $limitControl = $this->createLimitControl();
-        $paginationControl = $this->createPaginationControl($downtimes);
         $sortControl = $this->createSortControl(
             $downtimes,
             [
@@ -56,6 +54,8 @@ class DowntimesController extends Controller
             ]
         );
         $viewModeSwitcher = $this->createViewModeSwitcher();
+        $limitControl = $this->createLimitControl();
+        $paginationControl = $this->createPaginationControl($downtimes);
         $searchBar = $this->createSearchBar($downtimes, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

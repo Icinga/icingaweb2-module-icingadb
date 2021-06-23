@@ -48,8 +48,6 @@ class ServicesController extends Controller
             $summary = ServicestateSummary::on($db)->with('state');
         }
 
-        $limitControl = $this->createLimitControl();
-        $paginationControl = $this->createPaginationControl($services);
         $sortControl = $this->createSortControl(
             $services,
             [
@@ -61,6 +59,8 @@ class ServicesController extends Controller
             ]
         );
         $viewModeSwitcher = $this->createViewModeSwitcher();
+        $limitControl = $this->createLimitControl();
+        $paginationControl = $this->createPaginationControl($services);
         $searchBar = $this->createSearchBar($services, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

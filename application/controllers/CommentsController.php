@@ -38,8 +38,6 @@ class CommentsController extends Controller
 
         $this->handleSearchRequest($comments);
 
-        $limitControl = $this->createLimitControl();
-        $paginationControl = $this->createPaginationControl($comments);
         $sortControl = $this->createSortControl(
             $comments,
             [
@@ -51,6 +49,8 @@ class CommentsController extends Controller
             ]
         );
         $viewModeSwitcher = $this->createViewModeSwitcher();
+        $limitControl = $this->createLimitControl();
+        $paginationControl = $this->createPaginationControl($comments);
         $searchBar = $this->createSearchBar($comments, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

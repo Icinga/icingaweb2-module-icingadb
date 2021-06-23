@@ -44,8 +44,6 @@ class HostsController extends Controller
             $summary = HoststateSummary::on($db)->with('state');
         }
 
-        $limitControl = $this->createLimitControl();
-        $paginationControl = $this->createPaginationControl($hosts);
         $sortControl = $this->createSortControl(
             $hosts,
             [
@@ -56,6 +54,9 @@ class HostsController extends Controller
             ]
         );
         $viewModeSwitcher = $this->createViewModeSwitcher();
+        $limitControl = $this->createLimitControl();
+        $paginationControl = $this->createPaginationControl($hosts);
+
         $searchBar = $this->createSearchBar($hosts, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

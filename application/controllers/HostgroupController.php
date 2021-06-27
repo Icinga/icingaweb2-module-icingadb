@@ -50,9 +50,9 @@ class HostgroupController extends Controller
         $hosts->getSelectBase()->where(['host_hostgroup.id = ?' => $this->hostgroup->id]);
         $this->applyRestrictions($hosts);
 
-        $viewModeSwitcher = $this->createViewModeSwitcher();
         $limitControl = $this->createLimitControl();
         $paginationControl = $this->createPaginationControl($hosts);
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
 
         $hostList = (new HostList($hosts))
             ->setViewMode($viewModeSwitcher->getViewMode());

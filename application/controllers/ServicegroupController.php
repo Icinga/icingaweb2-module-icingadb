@@ -54,9 +54,9 @@ class ServicegroupController extends Controller
         $services->getSelectBase()->where(['service_servicegroup.id = ?' => $this->servicegroup->id]);
         $this->applyRestrictions($services);
 
-        $viewModeSwitcher = $this->createViewModeSwitcher();
         $limitControl = $this->createLimitControl();
         $paginationControl = $this->createPaginationControl($services);
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
 
         $serviceList = (new ServiceList($services))
             ->setViewMode($viewModeSwitcher->getViewMode());

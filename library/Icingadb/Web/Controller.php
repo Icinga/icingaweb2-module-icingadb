@@ -45,9 +45,6 @@ class Controller extends CompatController
     /** @var bool */
     private $formatProcessed = false;
 
-    /** @var ViewModeSwitcher */
-    private $viewModeSwitcher;
-
     /**
      * Get the filter created from query string parameters
      *
@@ -74,15 +71,6 @@ class Controller extends CompatController
         $limitControl = new LimitControl(Url::fromRequest());
         $limitControl->setDefaultLimit($this->getPageSize(null));
 
-        if (! $this->viewModeSwitcher ||
-            ($this->viewModeSwitcher->getViewMode() === $this->viewModeSwitcher->getDefaultViewMode() &&
-            $this->viewModeSwitcher->getViewMode() === 'minimal')) {
-            // If the limits set correspond to > 100, it shouldn't be a problem I think.
-            if ($limitControl->getLimit() <= 100) {
-                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
-            }
-        }
-
         $this->params->shift($limitControl->getLimitParam());
 
         return $limitControl;
@@ -100,36 +88,6 @@ class Controller extends CompatController
         $paginationControl = new PaginationControl($paginatable, Url::fromRequest());
         $paginationControl->setDefaultPageSize($this->getPageSize(null));
         $paginationControl->setAttribute('id', $this->getRequest()->protectId('pagination-control'));
-
-        $prefs = $this->Auth()->getUser()->getPreferences();
-        $icingadbPrefs = $prefs->icingadb ?: [];
-        $orgViewMode = $prefs->getValue('icingadb', 'org_view_mode');
-
-        if ($this->viewModeSwitcher &&
-            $this->viewModeSwitcher->getViewMode() === $this->viewModeSwitcher->getDefaultViewMode()) {
-            if ($this->viewModeSwitcher->getViewMode() === 'minimal') {
-                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
-
-                if ($orgViewMode !== $this->viewModeSwitcher->getViewMode() &&
-                    $paginationControl->getCurrentPageNumber() >= 2) {
-                    $icingadbPrefs['org_view_mode'] = $this->viewModeSwitcher->getViewMode();
-                    $icingadbPrefs['previous_page'] = $paginationControl->getCurrentPageNumber();
-                    $prefs->icingadb = $icingadbPrefs;
-
-                    $this->redirectNow(Url::fromRequest()->setParam(
-                        $paginationControl->getPageParam(),
-                        (int)ceil($paginationControl->getCurrentPageNumber() / 2)
-                    ));
-                }
-            } elseif ($orgViewMode === 'minimal' && $paginationControl->getCurrentPageNumber() >= 2) {
-                $icingadbPrefs['org_view_mode'] = $this->viewModeSwitcher->getViewMode();
-                $prefs->icingadb = $icingadbPrefs;
-
-                $newPageNum = $prefs->getValue('icingadb', 'previous_page');
-
-                $this->redirectNow(Url::fromRequest()->setParam($paginationControl->getPageParam(), $newPageNum));
-            }
-        }
 
         $this->params->shift($paginationControl->getPageParam());
         $this->params->shift($paginationControl->getPageSizeParam());
@@ -380,36 +338,60 @@ class Controller extends CompatController
      *
      * @return ViewModeSwitcher
      */
-    public function createViewModeSwitcher()
+    public function createViewModeSwitcher(PaginationControl $paginationControl, LimitControl $limitControl)
     {
-        $this->viewModeSwitcher = new ViewModeSwitcher(Url::fromRequest());
-        $this->viewModeSwitcher->setIdProtector([$this->getRequest(), 'protectId']);
+        $viewModeSwitcher = new ViewModeSwitcher();
+        $viewModeSwitcher->setIdProtector([$this->getRequest(), 'protectId']);
 
         $prefs = $this->Auth()->getUser()->getPreferences();
         $viewMode = $prefs->getValue('icingadb', 'view_mode');
         if (isset($viewMode)) {
-            $this->viewModeSwitcher->setDefaultViewMode($viewMode);
+            $viewModeSwitcher->setDefaultViewMode($viewMode);
         }
 
-        $this->viewModeSwitcher->populate([
-            'view' => $this->params->shift($this->viewModeSwitcher->getViewModeParam())
+        $viewModeSwitcher->populate([
+            'view' => $this->params->shift($viewModeSwitcher->getViewModeParam())
         ]);
 
-        $this->viewModeSwitcher->on(
-            ViewModeSwitcher::ON_SUCCESS,
-            function (ViewModeSwitcher $viewModeSwitcher) use ($prefs) {
-                $viewMode = $viewModeSwitcher->getValue($viewModeSwitcher->getViewModeParam());
+        if ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
+            if ($limitControl->getLimit() === $limitControl->getDefaultLimit()) {
+                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
+            }
 
+            $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
+        }
+
+        $viewModeSwitcher->on(
+            ViewModeSwitcher::ON_SUCCESS,
+            function (ViewModeSwitcher $viewModeSwitcher) use ($prefs, &$paginationControl) {
+                $viewMode = $viewModeSwitcher->getValue($viewModeSwitcher->getViewModeParam());
                 $icingadbPrefs = $prefs->icingadb ?: [];
                 $icingadbPrefs['view_mode'] = $viewMode;
-                $icingadbPrefs['org_view_mode'] = $this->viewModeSwitcher->getDefaultViewMode();
                 $prefs->icingadb = $icingadbPrefs;
+                $currentPage = $paginationControl->getCurrentPageNumber();
 
-                $this->redirectNow(Url::fromRequest()->setParam($viewModeSwitcher->getViewModeParam(), $viewMode));
+                if ($viewMode === 'minimal') {
+                    $limit = $paginationControl->getLimit();
+                    $currentPage = ((($paginationControl->getCurrentPageNumber() * $limit) - $limit) / ($limit * 2) + 1);
+
+                    $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
+                } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
+                    $limit = $paginationControl->getLimit();
+                    $currentPage = ((($paginationControl->getCurrentPageNumber() * $limit) - $limit) / ($limit / 2) + 1);
+
+                    $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() / 2);
+                }
+
+                $this->redirectNow(Url::fromRequest()->setParams([
+                    $viewModeSwitcher->getViewModeParam()   => $viewMode,
+                    $paginationControl->getPageParam()      => $currentPage
+                ]));
             }
         )->handleRequest(ServerRequest::fromGlobals());
 
-        return $this->viewModeSwitcher;
+        $paginationControl->apply();
+
+        return $viewModeSwitcher;
     }
 
     /**

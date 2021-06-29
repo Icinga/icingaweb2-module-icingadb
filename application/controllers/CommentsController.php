@@ -50,7 +50,7 @@ class CommentsController extends Controller
                 'comment.expire_time desc'                => t('Expire Time')
             ]
         );
-        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl);
         $searchBar = $this->createSearchBar($comments, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

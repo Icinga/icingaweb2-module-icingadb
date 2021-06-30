@@ -406,9 +406,21 @@ class Controller extends CompatController
                         $session->set('previous_page', $currentPage);
 
                         $limit = $paginationControl->getLimit();
-                        $currentPage = (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
+                        $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
                     } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
-                        $currentPage =  $session->get('previous_page');
+                        $limit = $paginationControl->getLimit();
+                        $previousPage = $session->get('previous_page');
+
+                        $previousPage = (floor((($previousPage * ($limit / 2)) - ($limit / 2)) / $limit) + 1);
+
+                        if ($currentPage === (int) $previousPage) {
+                            // No other page numbers have been selected, i.e the user only
+                            // switches back and forth without changing the page numbers
+                            $currentPage =  $session->get('previous_page');
+                        } else {
+                            $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit / 2)) + 1);
+                        }
+
                         $session->clear();
                     }
 

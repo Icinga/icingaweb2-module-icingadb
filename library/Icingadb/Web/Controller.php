@@ -105,6 +105,31 @@ class Controller extends CompatController
             }
         }
 
+        $session = $this->Window()->getSessionNamespace(
+            $this->Window()->getId() . Url::fromRequest()->getPath()
+        );
+
+        if ($session->get('previous_page')) {
+            $prefs = $this->Auth()->getUser()->getPreferences();
+            $viewMode = $prefs->getValue('icingadb', 'view_mode');
+
+            if ($viewMode === 'minimal') {
+                $previousPage = $session->get('previous_page');
+                $limit = $paginationControl->getLimit() / 2;
+                $currentPage = (int) (floor((($previousPage * $limit) - $limit) / ($limit * 2)) + 1);
+
+                if (
+                    $paginationControl->getCurrentPageNumber() !== $currentPage
+                    && ! Url::fromRequest()->getParams()->isEmpty()
+                ) {
+                    $this->redirectNow(Url::fromRequest()->setParams([
+                        ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM => $viewMode,
+                        $paginationControl->getPageParam()        => $currentPage
+                    ]));
+                }
+            }
+        }
+
         $this->params->shift($paginationControl->getPageParam());
         $this->params->shift($paginationControl->getPageSizeParam());
 

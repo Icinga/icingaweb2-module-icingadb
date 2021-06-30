@@ -354,7 +354,7 @@ class Controller extends CompatController
      *
      * @return ViewModeSwitcher
      */
-    public function createViewModeSwitcher(PaginationControl $paginationControl)
+    public function createViewModeSwitcher(PaginationControl $paginationControl, LimitControl $limitControl)
     {
         $viewModeSwitcher = new ViewModeSwitcher();
         $viewModeSwitcher->setIdProtector([$this->getRequest(), 'protectId']);
@@ -368,6 +368,20 @@ class Controller extends CompatController
         $viewModeSwitcher->populate([
             'view' => $this->params->shift($viewModeSwitcher->getViewModeParam())
         ]);
+
+        if ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
+            $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
+
+            if ($limitControl->getLimit() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
+            }
+
+            if ($paginationControl->getPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
+
+                $paginationControl->apply();
+            }
+        }
 
         $viewModeSwitcher->on(
             ViewModeSwitcher::ON_SUCCESS,
@@ -383,13 +397,19 @@ class Controller extends CompatController
                 $limitParam = LimitControl::DEFAULT_LIMIT_PARAM;
                 $urlParams[$viewModeSwitcher->getViewModeParam()] = $viewMode;
 
+                $session = $this->Window()->getSessionNamespace(
+                    $this->Window()->getId() . Url::fromRequest()->getPath()
+                );
+
                 if (! $requestUrl->hasParam($limitParam)) {
                     if ($viewMode === 'minimal') {
+                        $session->set('previous_page', $currentPage);
+
                         $limit = $paginationControl->getLimit();
                         $currentPage = (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
                     } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
-                        $limit = $paginationControl->getLimit();
-                        $currentPage = (floor((($currentPage * $limit) - $limit) / ($limit / 2)) + 1);
+                        $currentPage =  $session->get('previous_page');
+                        $session->clear();
                     }
 
                     if (($requestUrl->hasParam($pageParam) && $currentPage > 1) || $currentPage > 1) {

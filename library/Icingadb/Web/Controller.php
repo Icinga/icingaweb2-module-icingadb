@@ -73,12 +73,13 @@ class Controller extends CompatController
         $limitControl = new LimitControl(Url::fromRequest());
         $limitControl->setDefaultLimit($this->getPageSize(null));
 
-        if (Url::fromRequest()->getParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM) === 'minimal') {
-            $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
-
-            if ($limitControl->getDefaultLimit() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
-                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
-            }
+        // Clear Session when the user switches from the minimal view mode to
+        // another page that doesn't have a view mode switcher but a limitcontrol
+        if (Url::fromRequest()->getParams()->isEmpty()) {
+            $session = $this->Window()->getSessionNamespace(
+                self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
+            );
+            $session->clear();
         }
 
         $this->params->shift($limitControl->getLimitParam());
@@ -98,37 +99,6 @@ class Controller extends CompatController
         $paginationControl = new PaginationControl($paginatable, Url::fromRequest());
         $paginationControl->setDefaultPageSize($this->getPageSize(null));
         $paginationControl->setAttribute('id', $this->getRequest()->protectId('pagination-control'));
-
-        if (Url::fromRequest()->getParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM) === 'minimal') {
-            $hasLimitParam = Url::fromRequest()->hasParam(LimitControl::DEFAULT_LIMIT_PARAM);
-
-            if ($paginationControl->getDefaultPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
-                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
-            }
-        }
-
-        $session = $this->Window()->getSessionNamespace(
-            self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
-        );
-
-        if ($session->get('current_page')) {
-            $prefs = $this->Auth()->getUser()->getPreferences();
-            $viewMode = $prefs->getValue('icingadb', 'view_mode');
-
-            if ($viewMode === 'minimal') {
-                $currentPage = $session->get('current_page');
-
-                if (
-                    $paginationControl->getCurrentPageNumber() !== $currentPage
-                    && Url::fromRequest()->getParams()->isEmpty()
-                ) {
-                    $this->redirectNow(Url::fromRequest()->setParams([
-                        ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM => $viewMode,
-                        $paginationControl->getPageParam()        => $currentPage
-                    ]));
-                }
-            }
-        }
 
         $this->params->shift($paginationControl->getPageParam());
         $this->params->shift($paginationControl->getPageSizeParam());
@@ -394,37 +364,46 @@ class Controller extends CompatController
             'view' => $this->params->shift($viewModeSwitcher->getViewModeParam())
         ]);
 
-        if ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
+        if (
+            $viewModeSwitcher->getViewMode() === 'minimal'
+            || Url::fromRequest()->getParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM) === 'minimal'
+        ) {
             $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
 
-            if ($limitControl->getLimit() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+            if ($limitControl->getDefaultLimit() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
                 $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
             }
 
-            if ($paginationControl->getPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+            if ($paginationControl->getDefaultPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
                 $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
 
                 $paginationControl->apply();
             }
         }
 
+        $session = $this->Window()->getSessionNamespace(
+            self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
+        );
+
+        // Clear session when the view mode param doesn't exists
+        if (! Url::fromRequest()->hasParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM)) {
+            $session->clear();
+        }
+
         $viewModeSwitcher->on(
             ViewModeSwitcher::ON_SUCCESS,
-            function (ViewModeSwitcher $viewModeSwitcher) use ($prefs, $paginationControl) {
+            function (ViewModeSwitcher $viewModeSwitcher) use ($prefs, $paginationControl, &$session) {
                 $viewMode = $viewModeSwitcher->getValue($viewModeSwitcher->getViewModeParam());
                 $icingadbPrefs = $prefs->icingadb ?: [];
                 $icingadbPrefs['view_mode'] = $viewMode;
                 $prefs->icingadb = $icingadbPrefs;
+
                 $currentPage = $paginationControl->getCurrentPageNumber();
 
                 $requestUrl = Url::fromRequest();
                 $pageParam = $paginationControl->getPageParam();
                 $limitParam = LimitControl::DEFAULT_LIMIT_PARAM;
                 $urlParams[$viewModeSwitcher->getViewModeParam()] = $viewMode;
-
-                $session = $this->Window()->getSessionNamespace(
-                    self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
-                );
 
                 if (! $requestUrl->hasParam($limitParam)) {
                     if ($viewMode === 'minimal') {
@@ -435,13 +414,12 @@ class Controller extends CompatController
 
                         $session->set('current_page', $currentPage);
                     } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
-                        $limit = $paginationControl->getLimit();
-
                         if ($currentPage === $session->get('current_page')) {
                             // No other page numbers have been selected, i.e the user only
                             // switches back and forth without changing the page numbers
                             $currentPage =  $session->get('previous_page');
                         } else {
+                            $limit = $paginationControl->getLimit();
                             $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit / 2)) + 1);
                         }
 

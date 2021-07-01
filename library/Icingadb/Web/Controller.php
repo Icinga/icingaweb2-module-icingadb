@@ -36,6 +36,8 @@ class Controller extends CompatController
     use Auth;
     use Database;
 
+    const SESSION_PREFIX = 'Icinga-Session-Prefix';
+
     /** @var Filter Filter from query string parameters */
     private $filter;
 
@@ -106,21 +108,19 @@ class Controller extends CompatController
         }
 
         $session = $this->Window()->getSessionNamespace(
-            $this->Window()->getId() . Url::fromRequest()->getPath()
+            self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
         );
 
-        if ($session->get('previous_page')) {
+        if ($session->get('current_page')) {
             $prefs = $this->Auth()->getUser()->getPreferences();
             $viewMode = $prefs->getValue('icingadb', 'view_mode');
 
             if ($viewMode === 'minimal') {
-                $previousPage = $session->get('previous_page');
-                $limit = $paginationControl->getLimit() / 2;
-                $currentPage = (int) (floor((($previousPage * $limit) - $limit) / ($limit * 2)) + 1);
+                $currentPage = $session->get('current_page');
 
                 if (
                     $paginationControl->getCurrentPageNumber() !== $currentPage
-                    && ! Url::fromRequest()->getParams()->isEmpty()
+                    && Url::fromRequest()->getParams()->isEmpty()
                 ) {
                     $this->redirectNow(Url::fromRequest()->setParams([
                         ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM => $viewMode,
@@ -423,7 +423,7 @@ class Controller extends CompatController
                 $urlParams[$viewModeSwitcher->getViewModeParam()] = $viewMode;
 
                 $session = $this->Window()->getSessionNamespace(
-                    $this->Window()->getId() . Url::fromRequest()->getPath()
+                    self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
                 );
 
                 if (! $requestUrl->hasParam($limitParam)) {
@@ -432,13 +432,12 @@ class Controller extends CompatController
 
                         $limit = $paginationControl->getLimit();
                         $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
+
+                        $session->set('current_page', $currentPage);
                     } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
                         $limit = $paginationControl->getLimit();
-                        $previousPage = $session->get('previous_page');
 
-                        $previousPage = (floor((($previousPage * ($limit / 2)) - ($limit / 2)) / $limit) + 1);
-
-                        if ($currentPage === (int) $previousPage) {
+                        if ($currentPage === $session->get('current_page')) {
                             // No other page numbers have been selected, i.e the user only
                             // switches back and forth without changing the page numbers
                             $currentPage =  $session->get('previous_page');

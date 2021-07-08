@@ -36,8 +36,6 @@ class Controller extends CompatController
     use Auth;
     use Database;
 
-    const SESSION_PREFIX = 'Icinga-Session-Prefix';
-
     /** @var Filter Filter from query string parameters */
     private $filter;
 
@@ -72,15 +70,6 @@ class Controller extends CompatController
     {
         $limitControl = new LimitControl(Url::fromRequest());
         $limitControl->setDefaultLimit($this->getPageSize(null));
-
-        // Clear Session when the user switches from the minimal view mode to
-        // another page that doesn't have a view mode switcher but a limitcontrol
-        if (Url::fromRequest()->getParams()->isEmpty()) {
-            $session = $this->Window()->getSessionNamespace(
-                self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
-            );
-            $session->clear();
-        }
 
         $this->params->shift($limitControl->getLimitParam());
 
@@ -364,31 +353,9 @@ class Controller extends CompatController
             'view' => $this->params->shift($viewModeSwitcher->getViewModeParam())
         ]);
 
-        if (
-            $viewModeSwitcher->getViewMode() === 'minimal'
-            || Url::fromRequest()->getParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM) === 'minimal'
-        ) {
-            $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
-
-            if ($limitControl->getDefaultLimit() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
-                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
-            }
-
-            if ($paginationControl->getDefaultPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
-                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
-
-                $paginationControl->apply();
-            }
-        }
-
         $session = $this->Window()->getSessionNamespace(
-            self::SESSION_PREFIX . $this->Window()->getContainerId() . Url::fromRequest()->getPath()
+            'icingadb-viewmode-' . $this->Window()->getContainerId()
         );
-
-        // Clear session when the view mode param doesn't exists
-        if (! Url::fromRequest()->hasParam(ViewModeSwitcher::DEFAULT_VIEW_MODE_PARAM)) {
-            $session->clear();
-        }
 
         $viewModeSwitcher->on(
             ViewModeSwitcher::ON_SUCCESS,
@@ -408,6 +375,7 @@ class Controller extends CompatController
                 if (! $requestUrl->hasParam($limitParam)) {
                     if ($viewMode === 'minimal') {
                         $session->set('previous_page', $currentPage);
+                        $session->set('request_path', $requestUrl->getPath());
 
                         $limit = $paginationControl->getLimit();
                         $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
@@ -436,6 +404,23 @@ class Controller extends CompatController
                 $this->redirectNow($requestUrl->setParams($urlParams));
             }
         )->handleRequest(ServerRequest::fromGlobals());
+
+        if ($viewModeSwitcher->getViewMode() === 'minimal') {
+            $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
+
+            if ($paginationControl->getDefaultPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
+                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
+
+                $paginationControl->apply();
+            }
+        }
+
+        $requestPath =  $session->get('request_path');
+
+        if ($requestPath && $requestPath !== Url::fromRequest()->getPath()) {
+            $session->clear();
+        }
 
         return $viewModeSwitcher;
     }

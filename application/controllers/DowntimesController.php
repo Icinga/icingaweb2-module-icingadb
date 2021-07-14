@@ -55,7 +55,7 @@ class DowntimesController extends Controller
                 'downtime.duration desc'                          => t('Duration')
             ]
         );
-        $viewModeSwitcher = $this->createViewModeSwitcher();
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
         $searchBar = $this->createSearchBar($downtimes, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

@@ -60,7 +60,7 @@ class ServicesController extends Controller
                 'host.display_name, service.display_name' => t('Host')
             ]
         );
-        $viewModeSwitcher = $this->createViewModeSwitcher();
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
         $searchBar = $this->createSearchBar($services, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

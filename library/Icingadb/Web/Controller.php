@@ -338,9 +338,9 @@ class Controller extends CompatController
      *
      * @return ViewModeSwitcher
      */
-    public function createViewModeSwitcher()
+    public function createViewModeSwitcher(PaginationControl $paginationControl, LimitControl $limitControl)
     {
-        $viewModeSwitcher = new ViewModeSwitcher(Url::fromRequest());
+        $viewModeSwitcher = new ViewModeSwitcher();
         $viewModeSwitcher->setIdProtector([$this->getRequest(), 'protectId']);
 
         $prefs = $this->Auth()->getUser()->getPreferences();
@@ -349,19 +349,78 @@ class Controller extends CompatController
             $viewModeSwitcher->setDefaultViewMode($viewMode);
         }
 
-        $viewModeSwitcher->populate(['view' => $this->params->shift($viewModeSwitcher->getViewModeParam())]);
+        $viewModeSwitcher->populate([
+            'view' => $this->params->shift($viewModeSwitcher->getViewModeParam())
+        ]);
 
-        $viewModeSwitcher->on(ViewModeSwitcher::ON_SUCCESS, function (ViewModeSwitcher $viewModeSwitcher) use ($prefs) {
-            $viewMode = $viewModeSwitcher->getValue($viewModeSwitcher->getViewModeParam());
+        $session = $this->Window()->getSessionNamespace(
+            'icingadb-viewmode-' . $this->Window()->getContainerId()
+        );
 
-            $icingadbPrefs = $prefs->icingadb ?: [];
-            $icingadbPrefs['view_mode'] = $viewMode;
-            $prefs->icingadb = $icingadbPrefs;
+        $viewModeSwitcher->on(
+            ViewModeSwitcher::ON_SUCCESS,
+            function (ViewModeSwitcher $viewModeSwitcher) use ($prefs, $paginationControl, &$session) {
+                $viewMode = $viewModeSwitcher->getValue($viewModeSwitcher->getViewModeParam());
+                $icingadbPrefs = $prefs->icingadb ?: [];
+                $icingadbPrefs['view_mode'] = $viewMode;
+                $prefs->icingadb = $icingadbPrefs;
 
-            $this->redirectNow(Url::fromRequest()->setParam($viewModeSwitcher->getViewModeParam(), $viewMode));
-        });
+                $currentPage = $paginationControl->getCurrentPageNumber();
 
-        $viewModeSwitcher->handleRequest(ServerRequest::fromGlobals());
+                $requestUrl = Url::fromRequest();
+                $pageParam = $paginationControl->getPageParam();
+                $limitParam = LimitControl::DEFAULT_LIMIT_PARAM;
+                $urlParams[$viewModeSwitcher->getViewModeParam()] = $viewMode;
+
+                if (! $requestUrl->hasParam($limitParam)) {
+                    if ($viewMode === 'minimal') {
+                        $session->set('previous_page', $currentPage);
+                        $session->set('request_path', $requestUrl->getPath());
+
+                        $limit = $paginationControl->getLimit();
+                        $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit * 2)) + 1);
+
+                        $session->set('current_page', $currentPage);
+                    } elseif ($viewModeSwitcher->getDefaultViewMode() === 'minimal') {
+                        if ($currentPage === $session->get('current_page')) {
+                            // No other page numbers have been selected, i.e the user only
+                            // switches back and forth without changing the page numbers
+                            $currentPage =  $session->get('previous_page');
+                        } else {
+                            $limit = $paginationControl->getLimit();
+                            $currentPage = (int) (floor((($currentPage * $limit) - $limit) / ($limit / 2)) + 1);
+                        }
+
+                        $session->clear();
+                    }
+
+                    if (($requestUrl->hasParam($pageParam) && $currentPage > 1) || $currentPage > 1) {
+                        $urlParams[$pageParam] = $currentPage;
+                    }
+                } else {
+                    $urlParams[$limitParam] = $requestUrl->getParam($limitParam);
+                }
+
+                $this->redirectNow($requestUrl->setParams($urlParams));
+            }
+        )->handleRequest(ServerRequest::fromGlobals());
+
+        if ($viewModeSwitcher->getViewMode() === 'minimal') {
+            $hasLimitParam = Url::fromRequest()->hasParam($limitControl->getLimitParam());
+
+            if ($paginationControl->getDefaultPageSize() <= LimitControl::DEFAULT_LIMIT && ! $hasLimitParam) {
+                $paginationControl->setDefaultPageSize($paginationControl->getDefaultPageSize() * 2);
+                $limitControl->setDefaultLimit($limitControl->getDefaultLimit() * 2);
+
+                $paginationControl->apply();
+            }
+        }
+
+        $requestPath =  $session->get('request_path');
+
+        if ($requestPath && $requestPath !== Url::fromRequest()->getPath()) {
+            $session->clear();
+        }
 
         return $viewModeSwitcher;
     }

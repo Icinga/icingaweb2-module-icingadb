@@ -55,7 +55,7 @@ class HostsController extends Controller
                 'host.state.last_state_change desc' => t('Last State Change')
             ]
         );
-        $viewModeSwitcher = $this->createViewModeSwitcher();
+        $viewModeSwitcher = $this->createViewModeSwitcher($paginationControl, $limitControl);
         $searchBar = $this->createSearchBar($hosts, [
             $limitControl->getLimitParam(),
             $sortControl->getSortParam(),

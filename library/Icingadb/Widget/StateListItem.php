@@ -9,6 +9,7 @@ use Icinga\Module\Icingadb\Compat\CompatPluginOutput;
 use Icinga\Module\Icingadb\Model\State;
 use ipl\Html\BaseHtmlElement;
 use ipl\Html\Html;
+use ipl\Html\HtmlElement;
 use ipl\Html\Text;
 use ipl\Web\Widget\Icon;
 use ipl\Web\Widget\StateBall;
@@ -24,6 +25,10 @@ abstract class StateListItem extends BaseListItem
     protected function init()
     {
         $this->state = $this->item->state;
+
+        if (isset($this->item->icon_image->icon_image)) {
+            $this->list->setHasIconImages(true);
+        }
     }
 
     abstract protected function createSubject();
@@ -42,6 +47,18 @@ abstract class StateListItem extends BaseListItem
             }
 
             $caption->add($pluginOutput);
+        }
+    }
+
+    protected function assembleIconImage(BaseHtmlElement $iconImage)
+    {
+        if (isset($this->item->icon_image->icon_image)) {
+            $iconImage->add(HtmlElement::create('img', [
+                'src' => $this->item->icon_image->icon_image,
+                'alt' => $this->item->icon_image_alt
+            ]));
+        } else {
+            $iconImage->addAttributes(['class' => 'placeholder']);
         }
     }
 
@@ -95,12 +112,27 @@ abstract class StateListItem extends BaseListItem
         }
     }
 
+    protected function createIconImage()
+    {
+        $iconImage = HtmlElement::create('div', [
+            'class' => 'icon-image',
+        ]);
+
+        $this->assembleIconImage($iconImage);
+
+        return $iconImage;
+    }
+
     protected function assemble()
     {
         if ($this->state->is_overdue) {
             $this->addAttributes(['class' => 'overdue']);
         }
 
-        parent::assemble();
+        $this->add($this->createVisual());
+        if ($this->list->hasIconImages()) {
+            $this->add($this->createIconImage());
+        }
+        $this->add($this->createMain());
     }
 }

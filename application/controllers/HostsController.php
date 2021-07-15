@@ -35,7 +35,7 @@ class HostsController extends Controller
 
         $db = $this->getDb();
 
-        $hosts = Host::on($db)->with('state');
+        $hosts = Host::on($db)->with(['state', 'icon_image']);
 
         $this->handleSearchRequest($hosts);
 
@@ -92,6 +92,7 @@ class HostsController extends Controller
         $continueWith = $this->createContinueWith(Links::hostsDetails(), $searchBar);
 
         $results = $hosts->execute();
+
         $hostList = (new HostList($results))
             ->setViewMode($viewModeSwitcher->getViewMode());
 

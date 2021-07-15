@@ -48,12 +48,27 @@
       flex: 1 1 auto;
       padding: .5em 0;
       width: 0;
+      margin-left: .5em;
     }
 
     .visual {
       display: flex;
       align-items: center;
       flex-direction: column;
+    }
+
+    .icon-image {
+      align-self: center;
+      width:  3em;
+      height: 3em;
+      text-align: center;
+
+      img {
+        max-height: 100%;
+        max-width: 100%;
+        height: auto;
+        width: auto;
+      }
     }
 
     .caption {
@@ -88,12 +103,17 @@
     max-width: 100%;
   }
 
-  .visual {
-    margin-right: .5em;
-  }
-
   .check-attempt {
     display: none;
+  }
+
+  .icon-image {
+    height: 2em;
+    width: 2em;
+
+    img {
+      vertical-align: middle;
+    }
   }
 
   .title {

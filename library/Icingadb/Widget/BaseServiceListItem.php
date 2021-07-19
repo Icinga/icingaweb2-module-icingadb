@@ -28,11 +28,30 @@ abstract class BaseServiceListItem extends StateListItem
     protected function createSubject()
     {
         $service = $this->item->display_name;
-        $host = [
-            new StateBall($this->item->host->state->getStateText(), StateBall::SIZE_MEDIUM),
-            ' ',
-            $this->item->host->display_name
-        ];
+        if (isset($this->item->host->icon_image->icon_image)) {
+            $hostIconImage = HtmlElement::create('div', [
+                'class' => 'icon-image inline',
+            ]);
+
+            $hostIconImage->add(HtmlElement::create('img', [
+                'src' => $this->item->host->icon_image->icon_image,
+                'alt' => $this->item->host->icon_image_alt
+            ]));
+
+            $host = [
+                new StateBall($this->item->host->state->getStateText(), StateBall::SIZE_MEDIUM),
+                ' ',
+                $hostIconImage,
+                ' ',
+                $this->item->host->display_name
+            ];
+        } else {
+            $host = [
+                new StateBall($this->item->host->state->getStateText(), StateBall::SIZE_MEDIUM),
+                ' ',
+                $this->item->host->display_name
+            ];
+        }
 
         $host = new Link($host, Links::host($this->item->host), ['class' => 'subject']);
         if ($this->getNoSubjectLink()) {

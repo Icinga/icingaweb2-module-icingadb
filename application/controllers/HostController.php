@@ -37,7 +37,7 @@ class HostController extends Controller
     {
         $name = $this->params->shiftRequired('name');
 
-        $query = Host::on($this->getDb())->with('state');
+        $query = Host::on($this->getDb())->with(['state', 'icon_image']);
         $query->getSelectBase()
             ->where(['host.name = ?' => $name]);
 

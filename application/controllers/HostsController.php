@@ -124,8 +124,8 @@ class HostsController extends Controller
 
         $db = $this->getDb();
 
-        $hosts = Host::on($db)->with('state');
-        $summary = HoststateSummary::on($db)->with(['state']);
+        $hosts = Host::on($db)->with(['state', 'icon_image']);
+        $summary = HoststateSummary::on($db)->with(['state', 'icon_image']);
 
         $this->filter($hosts);
         $this->filter($summary);

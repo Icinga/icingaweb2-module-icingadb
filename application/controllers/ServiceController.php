@@ -37,7 +37,8 @@ class ServiceController extends Controller
         $query = Service::on($this->getDb())->with([
             'state',
             'host',
-            'host.state'
+            'host.state',
+            'host.icon_image'
         ]);
         $query->getSelectBase()
             ->where(['service.name = ?' => $name])
@@ -145,6 +146,7 @@ class ServiceController extends Controller
             'host',
             'host.service',
             'host.state',
+            'host.icon_image',
             'service',
             'service.state',
             'comment',

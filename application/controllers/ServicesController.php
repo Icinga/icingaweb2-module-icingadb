@@ -39,6 +39,7 @@ class ServicesController extends Controller
             'state',
             'host',
             'host.state',
+            'host.icon_image',
             'icon_image'
         ]);
 

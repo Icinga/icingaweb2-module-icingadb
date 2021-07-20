@@ -95,6 +95,14 @@ div.show-more {
     margin-bottom: .5em;
   }
 
+  #host-meta-info {
+    margin-bottom: 0;
+
+    .host-meta-info {
+      margin-bottom: .5em;
+    }
+  }
+
   &.overdue,
   &.overdue .tabs li.active a {
     background-color: @gray-lighter;
@@ -102,15 +110,10 @@ div.show-more {
 
   .filter {
     display: flex;
-    width: 100%;
+    min-width: 100%;
 
     .search-bar {
       flex: 1 1 auto;
-    }
-
-    .search-editor-opener,
-    .continue-with {
-      margin-left: .5em;
     }
   }
 
@@ -133,10 +136,22 @@ div.show-more {
     border-top: none;
   }
 
+  .list-item .visual {
+    margin-top: 0;
+  }
+
   .list-item .visual,
   .list-item .main {
     padding-bottom: .25em;
     padding-top: .25em;
+  }
+
+  .control-button {
+    margin-left: .5em;
+
+    &.continue-with {
+      margin-right: -.5em;
+    }
   }
 
   .sort-control {
@@ -151,17 +166,15 @@ div.show-more {
     // Icinga Web 2 override
     .spinner {
       height: 100%;
-      padding-right: 0;
+    }
+
+    .control-button {
+      margin: 0;
     }
   }
 
   .show-more {
     margin-top: .25em;
-    margin-left: 6em;
-  }
-
-  .quick-actions {
-    margin-bottom: .5em;
   }
 }
 
@@ -292,4 +305,9 @@ div.show-more {
       vertical-align: middle;
     }
   }
+}
+
+.hostgroup-list > col.object-statistics-graph,
+.servicegropup-list > col.object-statistics-graph {
+  padding-right: .25em;
 }

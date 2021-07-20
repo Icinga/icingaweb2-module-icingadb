@@ -2,18 +2,19 @@
   list-style-type: none;
   margin: 0 0 0.25em 0;
   padding: 0;
+  display: flex;
 
   input {
     display: none;
   }
 
   label {
-    display: inline-block;
     color: @icinga-blue;
     line-height: 1;
     background: @low-sat-blue;
     padding: 14/16*.25em 14/16*.5em;
     font-size: 16/12em;
+    height: 24/16em; // desired pixel height / font-size
 
     &:first-of-type {
       border-top-left-radius: 0.25em;
@@ -27,6 +28,11 @@
 
     &:not(:last-of-type) {
       border-right: 1px solid @low-sat-blue-dark;
+    }
+
+    i {
+      // fix height for Chrome
+      display: block;
     }
   }
 

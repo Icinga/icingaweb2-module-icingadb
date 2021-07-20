@@ -2,31 +2,44 @@
   display: flex;
   flex-wrap: wrap;
   list-style-type: none;
-  // TODO: Eh? Minus .25em on the left and right, maybe, because padding and responsiveness.
-  //       But what is the additional 1em on the left for???
-  margin: 0 -1.25em 0 -.25em;
-  margin: 0;
+  margin: 0 -.5em;
   padding: 0;
 
   a {
     text-decoration: none;
   }
 
-  li {
-    .rounded-corners();
-    margin-right: 1em;
+  a,
+  button {
     padding: .25em;
-    vertical-align: middle;
-    white-space: nowrap;
+    .rounded-corners();
+    display: inline-block;
 
     &:hover {
       background: @gray-lighter;
     }
   }
+
+  li {
+    margin: 0 .25em .5em .25em;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+}
+
+.controls > .quick-actions:last-child {
+  margin-bottom: 0;
 }
 
 #layout.twocols:not(.wide-layout) {
   .quick-actions {
     justify-content: space-between;
+    min-width: 100%;
+  }
+}
+
+#layout.wide-layout .controls {
+  .quick-actions {
+    float: left;
   }
 }

@@ -12,6 +12,24 @@ abstract class StateList extends BaseItemList
     use ViewMode;
     use NoSubjectLink;
 
+    protected $hasIconImages = false;
+
+    /**
+     * @return bool
+     */
+    public function hasIconImages()
+    {
+        return $this->hasIconImages;
+    }
+
+    /**
+     * @param bool $hasIconImages
+     */
+    public function setHasIconImages(bool $hasIconImages)
+    {
+        $this->hasIconImages = $hasIconImages;
+    }
+
     protected function assemble()
     {
         $this->addAttributes(['class' => $this->getViewMode()]);

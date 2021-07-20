@@ -38,7 +38,9 @@ class ServicesController extends Controller
         $services = Service::on($db)->with([
             'state',
             'host',
-            'host.state'
+            'host.state',
+            'host.icon_image',
+            'icon_image'
         ]);
 
         $this->handleSearchRequest($services);

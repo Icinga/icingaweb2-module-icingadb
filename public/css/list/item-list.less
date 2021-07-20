@@ -48,6 +48,7 @@
       flex: 1 1 auto;
       padding: .5em 0;
       width: 0;
+      margin-left: .5em;
     }
 
     .visual {
@@ -86,10 +87,6 @@
 .item-list.minimal .list-item {
   header {
     max-width: 100%;
-  }
-
-  .visual {
-    margin-right: .5em;
   }
 
   .check-attempt {
@@ -161,5 +158,43 @@
     position: relative;
 
     .line-clamp(4)
+  }
+}
+
+.item-list {
+  .icon-image {
+    width:  3em;
+    height: 3em;
+    align-self: center;
+    text-align: center;
+
+    &.inline {
+      display: inline-block;
+      height: 1.5em;
+      width: 1.5em;
+    }
+
+    img {
+      vertical-align: middle;
+      max-height: 100%;
+      max-width: 100%;
+      height: auto;
+      width: auto;
+    }
+  }
+
+  &.minimal {
+    .icon-image {
+      height: 2em;
+      width: 2em;
+    }
+  }
+
+  .title {
+    .icon-image {
+      display: inline-block;
+      width: 1.5em;
+      height: 1.5em;
+    }
   }
 }

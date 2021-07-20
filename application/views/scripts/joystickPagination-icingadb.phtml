@@ -1,0 +1,162 @@
+<?php
+
+use Icinga\Web\Url;
+
+$showText = $this->translate('%s: Show %s %u to %u out of %u', 'pagination.joystick');
+$flipUrl = Url::fromRequest();
+if ($flipUrl->getParam('flipped')) {
+    $flipUrl->remove('flipped');
+} else {
+    $flipUrl->setParam('flipped');
+}
+if ($flipUrl->hasParam('page')) {
+    $flipUrl->setParam('page', implode(',', array_reverse(explode(',', $flipUrl->getParam('page')))));
+}
+if ($flipUrl->hasParam('limit')) {
+    $flipUrl->setParam('limit', implode(',', array_reverse(explode(',', $flipUrl->getParam('limit')))));
+}
+$yAxisItemCountPerPage = $yAxisPaginator->getLimit();
+$yAxisTotalItem = $yAxisPaginator->count();
+$totalYAxisPages = ceil($yAxisTotalItem / $yAxisItemCountPerPage);
+$currentYAxisPage = round($yAxisPaginator->getOffset() / $yAxisItemCountPerPage) + 1;
+$prevYAxisPage = $currentYAxisPage > 1 ? $currentYAxisPage - 1 : null;
+$nextYAxisPage = $currentYAxisPage < $totalYAxisPages ? $currentYAxisPage + 1 : null;
+
+$xAxisItemCountPerPage = $xAxisPaginator->getLimit();
+$xAxisTotalItem = $xAxisPaginator->count();
+$totalXAxisPages = ceil($xAxisTotalItem / $xAxisItemCountPerPage);
+$currentXAxisPage = round($xAxisPaginator->getOffset() / $xAxisItemCountPerPage) + 1;
+$prevXAxisPage = $currentXAxisPage > 1 ? $currentXAxisPage - 1 : null;
+$nextXAxisPage = $currentXAxisPage < $totalXAxisPages ? $currentXAxisPage + 1 : null;
+
+?>
+
+<table class="joystick-pagination">
+  <tbody>
+    <tr>
+      <td>&nbsp;</td>
+      <td>
+      <?php if ($prevYAxisPage): ?>
+        <?= $this->qlink(
+          '',
+          Url::fromRequest(),
+          array(
+            'page' => $currentXAxisPage . ',' . $prevYAxisPage
+          ),
+          array(
+            'icon'              => 'up-open',
+            'data-base-target'  => '_self',
+            'title'             => sprintf(
+              $showText,
+              $this->translate('Y-Axis', 'pagination.joystick'),
+              $this->translate('hosts', 'pagination.joystick'),
+              ($prevYAxisPage - 1) * $xAxisItemCountPerPage + 1,
+              $prevYAxisPage * $xAxisItemCountPerPage,
+              $yAxisTotalItem
+            )
+          )
+        ); ?>
+      <?php else: ?>
+        <?= $this->icon('up-open'); ?>
+      <?php endif ?>
+      </td>
+      <td>&nbsp;</td>
+    </tr>
+    <tr>
+      <td>
+      <?php if ($prevXAxisPage): ?>
+        <?= $this->qlink(
+          '',
+          Url::fromRequest(),
+          array(
+            'page' => $prevXAxisPage . ',' . $currentYAxisPage
+          ),
+          array(
+            'icon'              => 'left-open',
+            'data-base-target'  => '_self',
+            'title'             => sprintf(
+              $showText,
+              $this->translate('X-Axis', 'pagination.joystick'),
+              $this->translate('services', 'pagination.joystick'),
+              ($prevXAxisPage - 1) * $xAxisItemCountPerPage + 1,
+              $prevXAxisPage * $xAxisItemCountPerPage,
+              $xAxisTotalItem
+            )
+          )
+        ); ?>
+      <?php else: ?>
+        <?= $this->icon('left-open'); ?>
+      <?php endif ?>
+      </td>
+      <?php if ($this->flippable): ?>
+      <td><?= $this->qlink(
+        '',
+        $flipUrl,
+        null,
+        array(
+          'icon'                => 'arrows-cw',
+          'data-base-target'    => '_self',
+          'title'               => $this->translate('Flip grid axes')
+        )
+      ) ?></td>
+      <?php else: ?>
+      <td>&nbsp;</td>
+      <?php endif ?>
+      <td>
+      <?php if ($nextXAxisPage): ?>
+        <?= $this->qlink(
+          '',
+          Url::fromRequest(),
+          array(
+            'page' => $nextXAxisPage . ',' . $currentYAxisPage
+          ),
+          array(
+            'icon'              => 'right-open',
+            'data-base-target'  => '_self',
+            'title'             => sprintf(
+              $showText,
+              $this->translate('X-Axis', 'pagination.joystick'),
+              $this->translate('services', 'pagination.joystick'),
+              $currentXAxisPage * $xAxisItemCountPerPage + 1,
+              $nextXAxisPage === $totalXAxisPages ? $xAxisItemCountPerPage : $nextXAxisPage * $xAxisItemCountPerPage,
+              $xAxisTotalItem
+            )
+          ),
+          false
+        ); ?>
+      <?php else: ?>
+        <?= $this->icon('right-open'); ?>
+      <?php endif ?>
+      </td>
+    </tr>
+    <tr>
+      <td>&nbsp;</td>
+      <td>
+      <?php if ($nextYAxisPage): ?>
+        <?= $this->qlink(
+          '',
+          Url::fromRequest(),
+          array(
+            'page' => $currentXAxisPage . ',' . $nextYAxisPage
+          ),
+          array(
+            'icon'              => 'down-open',
+            'data-base-target'  => '_self',
+            'title'             => sprintf(
+              $showText,
+              $this->translate('Y-Axis', 'pagination.joystick'),
+              $this->translate('hosts', 'pagination.joystick'),
+              $currentYAxisPage * $yAxisItemCountPerPage + 1,
+              $nextYAxisPage === $totalYAxisPages ? $yAxisItemCountPerPage : $nextYAxisPage * $yAxisItemCountPerPage,
+              $yAxisTotalItem
+            )
+          )
+        ); ?>
+      <?php else: ?>
+        <?= $this->icon('down-open'); ?>
+      <?php endif ?>
+      </td>
+      <td>&nbsp;</td>
+    </tr>
+  </tbody>
+</table>

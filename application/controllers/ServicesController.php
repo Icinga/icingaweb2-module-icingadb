@@ -7,9 +7,11 @@ namespace Icinga\Module\Icingadb\Controllers;
 use GuzzleHttp\Psr7\ServerRequest;
 use Icinga\Module\Icingadb\Common\CommandActions;
 use Icinga\Module\Icingadb\Common\Links;
+use Icinga\Module\Icingadb\Data\PivotTable;
 use Icinga\Module\Icingadb\Model\Service;
 use Icinga\Module\Icingadb\Model\ServicestateSummary;
 use Icinga\Module\Icingadb\Util\FeatureStatus;
+use Icinga\Module\Icingadb\Web\Control\ProblemToggle;
 use Icinga\Module\Icingadb\Web\Control\SearchBar\ObjectSuggestions;
 use Icinga\Module\Icingadb\Web\Controller;
 use Icinga\Module\Icingadb\Widget\Detail\MultiselectQuickActions;
@@ -198,6 +200,105 @@ class ServicesController extends Controller
         $this->setTitle(t('Adjust Filter'));
     }
 
+    public function gridAction()
+    {
+        $db = $this->getDb();
+        $this->setTitle(t('Service Grid'));
+
+        $query = Service::on($db)->with([
+            'state',
+            'host',
+            'host.state'
+        ]);
+
+        $gridcols = [
+            'host_name' => 'host.name',
+            'host_display_name' => 'host.display_name',
+            'service_name' => 'service.name',
+            'service_display_name' => 'service.display_name',
+            'service_handled' => 'service.state.is_handled',
+            'service_output' => 'service.state.output',
+            'service_state' => 'service.state.soft_state'
+        ];
+
+        $pivotFilter = (bool) $this->params->get('problems', false) ?
+            Filter::equal('service.state.is_problem', 'y') : null;
+
+        $problemToggle = $this->createProblemToggle();
+        $this->addControl($problemToggle);
+
+        $sortControl = $this->createSortControl($query, [
+            'service.name' => t('Service Name'),
+            'host.name' => t('Host Name'),
+        ]);
+
+        $sortControl->setDefault('service.name');
+
+        $flipped = $this->params->shift('flipped', false);
+
+        if ($flipped) {
+            $xAxisCol = 'host_name';
+            $yAxisCol = 'service_name';
+        } else {
+            $xAxisCol = 'service_name';
+            $yAxisCol = 'host_name';
+        }
+
+        $pivot = (new PivotTable($query, $xAxisCol, $yAxisCol, $gridcols))
+            ->setXAxisFilter($pivotFilter)
+            ->setYAxisFilter($pivotFilter ? clone $pivotFilter : null)
+            ->setXAxisHeader($xAxisCol)
+            ->setYAxisHeader($yAxisCol);
+
+        $this->params->shift('page');
+        $this->params->shift('limit');
+
+        $searchBar = $this->createSearchBar($query, [
+            LimitControl::DEFAULT_LIMIT_PARAM,
+            $sortControl->getSortParam(),
+            'flipped',
+            'page',
+            'problems'
+        ]);
+
+        if ($searchBar->hasBeenSent() && ! $searchBar->isValid()) {
+            if ($searchBar->hasBeenSubmitted()) {
+                $filter = $this->getFilter();
+            } else {
+                $this->addControl($searchBar);
+                $this->sendMultipartUpdate();
+                return;
+            }
+        } else {
+            $filter = $searchBar->getFilter();
+        }
+
+        $continueWith = $this->createContinueWith(Links::servicesDetails(), $searchBar);
+
+        $this->filter($query, $filter);
+
+        $this->addControl($sortControl);
+        $this->addControl($searchBar);
+
+        $this->view->horizontalPaginator = $pivot->paginateXAxis();
+        $this->view->verticalPaginator = $pivot->paginateYAxis();
+        list($pivotData, $pivotHeader) = $pivot->toArray();
+        $this->view->pivotData = $pivotData;
+        $this->view->pivotHeader = $pivotHeader;
+
+        $this->view->controls = $this->controls;
+
+        if ($flipped) {
+            $this->render('grid-flipped');
+        }
+
+        if (! $searchBar->hasBeenSubmitted() && $searchBar->hasBeenSent()) {
+            $this->sendMultipartUpdate($continueWith);
+        }
+
+        $this->setAutorefreshInterval(30);
+    }
+
     public function fetchCommandTargets()
     {
         $db = $this->getDb();
@@ -232,5 +333,23 @@ class ServicesController extends Controller
         $this->filter($summary);
 
         return new FeatureStatus('service', $summary->first());
+    }
+
+    public function createProblemToggle()
+    {
+        $filter = $this->params->shift('problems');
+
+        $problemToggle = new ProblemToggle($filter);
+        $problemToggle->setIdProtector([$this->getRequest(), 'protectId']);
+
+        $problemToggle->on(ProblemToggle::ON_SUCCESS, function (ProblemToggle $form) {
+            if (! $form->getElement('problems')->isChecked()) {
+                $this->redirectNow(Url::fromRequest()->remove('problems'));
+            } else {
+                $this->redirectNow(Url::fromRequest()->setParams($this->params->add('problems')));
+            }
+        })->handleRequest(ServerRequest::fromGlobals());
+
+        return $problemToggle;
     }
 }

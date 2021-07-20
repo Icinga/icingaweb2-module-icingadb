@@ -19,6 +19,7 @@ use ipl\Html\Attributes;
 use ipl\Html\BaseHtmlElement;
 use ipl\Html\Html;
 use ipl\Html\HtmlElement;
+use ipl\Html\TemplateString;
 use ipl\Html\Text;
 use ipl\Stdlib\Filter;
 use ipl\Web\Widget\Icon;
@@ -131,23 +132,32 @@ abstract class BaseDowntimeListItem extends BaseListItem
             $link = $this->createServiceLink($this->item->service, $this->item->service->host, true);
         }
 
-        if ($this->getNoSubjectLink()) {
-            $title->addHtml(new HtmlElement(
-                'span',
-                Attributes::create(['class' => 'subject']),
-                Text::create($this->item->is_flexible ? t('Flexible Downtime') : t('Fixed Downtime'))
-            ));
+        if ($this->item->is_flexible) {
+            if ($link !== null) {
+                $template = t('{{#link}}Flexible Downtime{{/link}} for %s');
+            } else {
+                $template = t('{{#link}}Flexible Downtime{{/link}}');
+            }
         } else {
-            $title->addHtml(new Link(
-                $this->item->is_flexible
-                    ? t('Flexible Downtime')
-                    : t('Fixed Downtime'),
-                Links::downtime($this->item)
-            ));
+            if ($link !== null) {
+                $template = t('{{#link}}Fixed Downtime{{/link}} for %s');
+            } else {
+                $template = t('{{#link}}Fixed Downtime{{/link}}');
+            }
         }
 
-        if ($link !== null) {
-            $title->addHtml(Text::create(': '), $link);
+        if ($this->getNoSubjectLink()) {
+            $title->addHtml(TemplateString::create(
+                $template,
+                ['link' => HtmlElement::create('span', [ 'class' => 'subject'])],
+                $link
+            ));
+        } else {
+            $title->addHtml(TemplateString::create(
+                $template,
+                ['link' => new Link('', Links::downtime($this->item))],
+                $link
+            ));
         }
     }
 
